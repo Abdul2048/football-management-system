@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Search Players</h2>
+<form method="POST">
+    <div>
+        <label>Search by Name:</label>
+        <input type="text" name="search_term" required>
+    </div>
+    <button type="submit">Search</button>
+</form>
+{% if players %}
+    <h3>Search Results</h3>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Team</th>
+            <th>Position</th>
+            <th>Jersey Number</th>
+        </tr>
+        {% for player in players %}
+            <tr>
+                <td>{{ player.first_name }} {{ player.last_name }}</td>
+                <td>{{ player.team_name }}</td>
+                <td>{{ player.position }}</td>
+                <td>{{ player.jersey_number }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endif %}
+{% endblock %}
