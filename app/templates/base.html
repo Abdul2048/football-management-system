@@ -11,7 +11,7 @@
         {% if current_user.is_authenticated %}
             <a href="{{ url_for('player.dashboard') }}">Dashboard</a>
             <a href="{{ url_for('player.search') }}">Search Players</a>
-            <a href="{{ url_for('player.add') }}">Add Player</a>
+            <a href="{{ url_for('player.add_player') }}">Add Player</a>
             <a href="{{ url_for('auth.logout') }}">Logout</a>
         {% else %}
             <a href="{{ url_for('auth.login') }}">Login</a>

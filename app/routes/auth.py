@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_user, logout_user, login_required
 from ..models.user import User
-from .. import db
+from .. import create_db_connection
+
+from werkzeug.security import generate_password_hash, check_password_hash
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -10,9 +12,16 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
         
-        if user and user.check_password(password):
+        conn = create_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM user WHERE username = %s", (username,))
+        user_data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if user_data and check_password_hash(user_data['password_hash'], password):
+            user = User(user_data['id'], user_data['username'], user_data['password_hash'])
             login_user(user)
             return redirect(url_for('player.dashboard'))
         else:
@@ -26,13 +35,24 @@ def register():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        if User.query.filter_by(username=username).first():
+        conn = create_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM user WHERE username = %s", (username,))
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
             flash('Username already exists')
+            cursor.close()
+            conn.close()
         else:
-            user = User(username=username)
-            user.set_password(password)
-            db.session.add(user)
-            db.session.commit()
+            password_hash = generate_password_hash(password)
+            cursor.execute(
+                "INSERT INTO user (username, password_hash) VALUES (%s, %s)",
+                (username, password_hash)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
             flash('Registration successful! Please login.')
             return redirect(url_for('auth.login'))
     

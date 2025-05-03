@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required
-from .. import db
-from sqlalchemy.sql import text
+from .. import create_db_connection
 
 player_bp = Blueprint('player', __name__)
 
@@ -16,13 +15,18 @@ def search():
     players = []
     if request.method == 'POST':
         search_term = request.form.get('search_term')
-        query = text("""
+        conn = create_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        query = """
             SELECT p.player_id, p.first_name, p.last_name, t.team_name, p.position, p.jersey_number
             FROM player p
             JOIN team t ON p.team_id = t.team_id
-            WHERE p.first_name LIKE :term OR p.last_name LIKE :term
-        """)
-        players = db.session.execute(query, {'term': f'%{search_term}%'}).fetchall()
+            WHERE p.first_name LIKE %s OR p.last_name LIKE %s
+        """
+        cursor.execute(query, (f'%{search_term}%', f'%{search_term}%'))
+        players = cursor.fetchall()
+        cursor.close()
+        conn.close()
     
     return render_template('player_search.html', players=players)
 
@@ -38,26 +42,29 @@ def add_player():
         position = request.form.get('position')
         jersey_number = request.form.get('jersey_number')
         
+        conn = create_db_connection()
+        cursor = conn.cursor()
         try:
-            query = text("""
+            query = """
                 INSERT INTO player (first_name, last_name, team_id, nationality, birth_date, position, jersey_number)
-                VALUES (:first_name, :last_name, :team_id, :nationality, :birth_date, :position, :jersey_number)
-            """)
-            db.session.execute(query, {
-                'first_name': first_name,
-                'last_name': last_name,
-                'team_id': team_id,
-                'nationality': nationality,
-                'birth_date': birth_date,
-                'position': position,
-                'jersey_number': jersey_number
-            })
-            db.session.commit()
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(query, (first_name, last_name, team_id, nationality, birth_date, position, jersey_number))
+            conn.commit()
             flash('Player added successfully!')
+            cursor.close()
+            conn.close()
             return redirect(url_for('player.dashboard'))
         except Exception as e:
-            db.session.rollback()
+            conn.rollback()
             flash(f'Error adding player: {str(e)}')
+            cursor.close()
+            conn.close()
     
-    teams = db.session.execute(text("SELECT team_id, team_name FROM team")).fetchall()
+    conn = create_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT team_id, team_name FROM team")
+    teams = cursor.fetchall()
+    cursor.close()
+    conn.close()
     return render_template('add_player.html', teams=teams)
